@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vigenère Cipher Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-mono: 'Share Tech Mono', monospace;
+            --font-code: 'Source Code Pro', monospace;
+            --font-typewriter: 'Special Elite', 'Courier New', Courier, monospace;
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --text-color: #ffffff;
+            --background-color: #8B0000;
+            --paper-color: #f9f1e0;
+            --border-color: #8b7355;
+            --dark-red: #4a0000;
+            --light-red: #a52a2a;
+            --highlight-color: #ffd700;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: var(--font-typewriter) !important;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .puzzle-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .puzzle-piece {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: var(--light-red);
+            opacity: 0.3;
+            clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 75% 100%, 0% 100%);
+            animation: floatPuzzle 20s linear infinite;
+            box-shadow: 0 0 20px rgba(165, 42, 42, 0.5);
+        }
+
+        .puzzle-piece:nth-child(2) {
+            clip-path: polygon(25% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 25%);
+            animation-delay: -5s;
+            background: var(--accent-color);
+        }
+
+        .puzzle-piece:nth-child(3) {
+            clip-path: polygon(0% 25%, 75% 0%, 100% 25%, 25% 100%, 0% 100%);
+            animation-delay: -10s;
+            background: var(--highlight-color);
+        }
+
+        .puzzle-piece:nth-child(4) {
+            clip-path: polygon(25% 0%, 100% 0%, 100% 75%, 75% 100%, 0% 100%, 0% 25%);
+            animation-delay: -15s;
+            background: var(--secondary-color);
+        }
+
+        @keyframes floatPuzzle {
+            0% {
+                transform: translate(-100px, -100px) rotate(0deg);
+            }
+            25% {
+                transform: translate(calc(100vw + 100px), -100px) rotate(90deg);
+            }
+            50% {
+                transform: translate(calc(100vw + 100px), calc(100vh + 100px)) rotate(180deg);
+            }
+            75% {
+                transform: translate(-100px, calc(100vh + 100px)) rotate(270deg);
+            }
+            100% {
+                transform: translate(-100px, -100px) rotate(360deg);
+            }
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(45deg, transparent 48%, var(--light-red) 49%, var(--light-red) 51%, transparent 52%),
+                linear-gradient(-45deg, transparent 48%, var(--light-red) 49%, var(--light-red) 51%, transparent 52%);
+            background-size: 30px 30px;
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--background-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease-out;
+            overflow: hidden;
+        }
+
+        .loading-animation {
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--light-red);
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--text-color);
+            margin-top: 2rem;
+            font-size: 1.2rem;
+            text-align: center;
+            opacity: 0;
+            animation: fadeIn 2s ease-in forwards;
+            z-index: 2;
+            text-shadow: 0 0 10px rgba(165, 42, 42, 0.5);
+            font-family: var(--font-code);
+        }
+
+        .loading-progress {
+            width: 200px;
+            height: 4px;
+            background: #333;
+            margin-top: 1rem;
+            border-radius: 2px;
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: var(--light-red);
+            animation: progress 3s ease-in-out forwards;
+        }
+
+        .header {
+            background-color: rgba(74, 0, 0, 0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            padding: 1rem 2rem;
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--light-red);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .site-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--highlight-color);
+            text-decoration: none;
+            text-shadow: 
+                0 0 10px rgba(255, 215, 0, 0.5),
+                0 0 20px rgba(255, 215, 0, 0.3);
+            position: relative;
+            padding-left: 40px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .site-title::before {
+            content: '🔐';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.8rem;
+            transition: transform 0.3s ease;
+        }
+
+        .site-title:hover::before {
+            transform: translateY(-50%) rotate(15deg);
+        }
+
+        .site-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 36px;
+            transition: transform 0.3s ease;
+        }
+
+        .ghost-eyes {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 36px;
+            pointer-events: none;
+        }
+
+        .ghost-eye {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #1a1a1a;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .ghost-eye.left {
+            left: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .ghost-eye.right {
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .ghost-eye::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #fff;
+            border-radius: 50%;
+            top: 1px;
+            left: 1px;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-menu a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: bold;
+            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            position: relative;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .nav-menu a:hover {
+            color: var(--highlight-color);
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+        }
+
+        .nav-menu a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: #fff;
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .nav-menu a:hover::after {
+            width: 80%;
+        }
+
+        .burger-menu {
+            display: none;
+            cursor: pointer;
+            width: 30px;
+            height: 20px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .burger-menu span {
+            display: block;
+            position: absolute;
+            height: 3px;
+            width: 100%;
+            background: #fff;
+            border-radius: 3px;
+            transition: all 0.3s ease;
+        }
+
+        .burger-menu span:nth-child(1) { top: 0; }
+        .burger-menu span:nth-child(2) { top: 50%; transform: translateY(-50%); }
+        .burger-menu span:nth-child(3) { bottom: 0; }
+
+        .burger-menu.active span:nth-child(1) {
+            transform: rotate(45deg);
+            top: 50%;
+        }
+
+        .burger-menu.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .burger-menu.active span:nth-child(3) {
+            transform: rotate(-45deg);
+            bottom: 50%;
+        }
+
+        @media (max-width: 768px) {
+            .burger-menu {
+                display: block;
+                z-index: 1001;
+            }
+
+            .nav-menu {
+                position: fixed;
+                top: 0;
+                right: -100%;
+                width: 70%;
+                height: 100vh;
+                background: rgba(74, 0, 0, 0.95);
+                backdrop-filter: blur(10px);
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 2rem;
+                transition: all 0.3s ease;
+                z-index: 1000;
+                border-left: 2px solid var(--highlight-color);
+                box-shadow: -5px 0 15px rgba(0, 0, 0, 0.3);
+            }
+
+            .nav-menu.active {
+                right: 0;
+            }
+
+            .nav-menu a {
+                font-size: 1.2rem;
+                position: relative;
+                padding: 1rem 2rem;
+                transition: all 0.3s ease;
+                color: var(--text-color);
+                text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+                pointer-events: auto;
+                cursor: pointer;
+            }
+
+            .nav-menu a:hover {
+                color: var(--highlight-color);
+                text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+                transform: translateX(10px);
+            }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes floatGhost {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(100px, 50px) rotate(5deg); }
+            50% { transform: translate(50px, 100px) rotate(-5deg); }
+            75% { transform: translate(-50px, 50px) rotate(5deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes progress {
+            from { width: 0%; }
+            to { width: 100%; }
+        }
+
+        @keyframes ghostAppear {
+            0% {
+                opacity: 0;
+                transform: translateX(50px);
+                filter: blur(10px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0);
+                filter: blur(0);
+            }
+        }
+
+        .section {
+            min-height: 100vh;
+            padding: 6rem 2rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            scroll-snap-align: start;
+            position: relative;
+        }
+
+        #about.section {
+            min-height: auto;
+            padding-bottom: 4rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .main-title {
+            font-size: 4rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            font-family: var(--font-code);
+            text-shadow: 
+                0 0 10px rgba(255, 215, 0, 0.8),
+                0 0 20px rgba(255, 215, 0, 0.6),
+                0 0 30px rgba(255, 215, 0, 0.4);
+            opacity: 1;
+            transform: translateY(0);
+            color: var(--highlight-color);
+            font-weight: bold;
+            letter-spacing: 2px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .tagline {
+            font-size: 1.5rem;
+            text-align: center;
+            color: var(--text-color);
+            font-family: var(--font-mono);
+            opacity: 1;
+            transform: translateY(0);
+            position: relative;
+            text-shadow: 
+                0 0 10px rgba(255, 255, 255, 0.8),
+                0 0 20px rgba(255, 255, 255, 0.6);
+            font-weight: bold;
+            z-index: 2;
+        }
+
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2.5rem;
+                padding: 0 1rem;
+            }
+            .tagline {
+                font-size: 1.2rem;
+                padding: 0 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-title {
+                font-size: 2rem;
+            }
+            .tagline {
+                font-size: 1rem;
+            }
+        }
+
+        .content-box {
+            background: rgba(74, 0, 0, 0.9);
+            padding: 2rem;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            margin: 2rem 0;
+            border: 2px solid var(--highlight-color);
+            box-shadow: 
+                0 4px 6px rgba(0, 0, 0, 0.3),
+                0 0 20px rgba(255, 215, 0, 0.2);
+        }
+
+        .content-box h2, .content-box h3 {
+            color: var(--highlight-color);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .content-box p, .content-box li {
+            color: var(--text-color);
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+        }
+
+        .article-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-top: 2rem;
+            padding: 0 1rem;
+        }
+
+        .article-card {
+            background: rgba(74, 0, 0, 0.9);
+            border-radius: 10px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-width: 0; /* Prevents overflow */
+            border: 2px solid var(--highlight-color);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+        }
+
+        .article-card img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .article-card h3 {
+            padding: 0.75rem;
+            font-family: var(--font-code);
+            font-size: 1rem;
+            color: var(--highlight-color);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            line-height: 1.4;
+        }
+
+        .article-card p {
+            flex-grow: 1;
+            padding: 0.75rem;
+            color: var(--text-color);
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+            line-height: 1.5;
+            font-size: 0.9rem;
+        }
+
+        .article-date {
+            display: block;
+            font-family: var(--font-code);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.8rem;
+            padding: 0.5rem 0.75rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .article-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .profile-container {
+            display: flex;
+            gap: 3rem;
+            align-items: flex-start;
+            background: rgba(74, 0, 0, 0.8);
+            padding: 2rem;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--light-red);
+            margin-bottom: 2rem;
+        }
+
+        .profile-image img {
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .profile-content {
+            flex: 1;
+        }
+
+        .social-links {
+            margin-top: 1rem;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .social-link {
+            color: #fff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 1200px) {
+            .article-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .article-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .code-example {
+            margin-top: 2rem;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 2px solid var(--highlight-color);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+        }
+
+        .code-example h3 {
+            margin-bottom: 1rem;
+            color: var(--highlight-color);
+            font-family: var(--font-code);
+        }
+
+        .code-example pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid var(--highlight-color);
+        }
+
+        .code-example code {
+            font-family: var(--font-code);
+            color: #00ff00;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .code-warning {
+            color: #ff6b6b;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            padding: 0.5rem;
+            border-left: 3px solid #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .scroll-indicator {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+            z-index: 10;
+        }
+
+        .scroll-indicator span {
+            font-family: var(--font-code);
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.2rem;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        .scroll-arrow {
+            width: 20px;
+            height: 20px;
+            border-right: 2px solid rgba(255, 255, 255, 0.8);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.8);
+            transform: rotate(45deg);
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0.6;
+            }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: rotate(45deg) translateY(0);
+            }
+            40% {
+                transform: rotate(45deg) translateY(-10px);
+            }
+            60% {
+                transform: rotate(45deg) translateY(-5px);
+            }
+        }
+
+        .scroll-indicator.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .scroll-indicator {
+                bottom: 1rem;
+            }
+            
+            .scroll-indicator span {
+                font-size: 1rem;
+            }
+        }
+
+        .content-box h3 {
+            color: #fff;
+            margin: 2rem 0 1rem;
+            font-family: var(--font-code);
+            font-size: 1.3rem;
+        }
+
+        .content-box ul {
+            margin: 1rem 0;
+            padding-left: 1.5rem;
+        }
+
+        .content-box li {
+            margin: 0.5rem 0;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+        }
+
+        .profile-title {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            font-family: var(--font-code);
+        }
+
+        .profile-description {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .profile-details {
+            margin: 1.5rem 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .detail-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-family: var(--font-code);
+            font-size: 0.9rem;
+        }
+
+        .detail-value {
+            color: #fff;
+            font-size: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .section {
+                padding: 6rem 1rem 2rem;
+            }
+
+            #about.section {
+                padding-bottom: 2rem;
+            }
+
+            .profile-container {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                gap: 2rem;
+                padding: 1.5rem;
+            }
+        }
+
+        .ghost-animation {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50px 50px 0 0;
+            animation: ghostFloat 2s ease-out forwards;
+            z-index: 1000;
+            pointer-events: none;
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+        }
+
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        #matrix-canvas.active {
+            opacity: 1;
+        }
+
+        .ghost-animation:before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(26, 26, 26, 0.8);
+            border-radius: 50%;
+            top: 30px;
+            left: 20px;
+            box-shadow: 40px 0 0 rgba(26, 26, 26, 0.8);
+        }
+
+        .ghost-animation:after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 0 0 50% 50%;
+        }
+
+        @keyframes ghostFloat {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -30%);
+            }
+            20% {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+            80% {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -70%);
+            }
+        }
+
+        .glitch-text {
+            animation: glitch 0.3s linear;
+        }
+
+        @keyframes glitch {
+            0% {
+                transform: translate(0);
+            }
+            20% {
+                transform: translate(-2px, 2px);
+            }
+            40% {
+                transform: translate(-2px, -2px);
+            }
+            60% {
+                transform: translate(2px, 2px);
+            }
+            80% {
+                transform: translate(2px, -2px);
+            }
+            100% {
+                transform: translate(0);
+            }
+        }
+
+        .floating-ghost {
+            position: fixed;
+            width: 40px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px 20px 0 0;
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.3s ease;
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3));
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .floating-ghost::before {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: rgba(26, 26, 26, 0.8);
+            border-radius: 50%;
+            top: 12px;
+            left: 8px;
+            box-shadow: 16px 0 0 rgba(26, 26, 26, 0.8);
+            animation: blink 3s infinite;
+        }
+
+        .floating-ghost::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 0;
+            width: 100%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 0 0 50% 50%;
+        }
+
+        .floating-ghost .mouth {
+            position: absolute;
+            width: 12px;
+            height: 6px;
+            border: 2px solid rgba(26, 26, 26, 0.8);
+            border-radius: 0 0 12px 12px;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            animation: smile 3s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(2deg); }
+        }
+
+        @keyframes blink {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.1); }
+        }
+
+        @keyframes smile {
+            0%, 100% { transform: translateX(-50%) scaleY(1); }
+            50% { transform: translateX(-50%) scaleY(0.8); }
+        }
+
+        .floating-ghost.following {
+            animation: none;
+            transition: all 0.3s ease;
+        }
+
+        .floating-ghost.following::before {
+            animation: none;
+        }
+
+        .floating-ghost.following .mouth {
+            animation: none;
+            transform: translateX(-50%) scaleY(1.2);
+        }
+
+        .vigenere-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: auto;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .vigenere-modal-content {
+            background: #222;
+            color: #ffd700;
+            margin: 5% auto;
+            padding: 2.5rem;
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 0 30px #000;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .vigenere-modal-content h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            color: var(--highlight-color);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .vigenere-modal-content label {
+            color: #ffd700;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .vigenere-modal-content input,
+        .vigenere-modal-content textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border-radius: 5px;
+            border: 1px solid #ffd700;
+            background: #111;
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .vigenere-modal-content input:focus,
+        .vigenere-modal-content textarea:focus {
+            outline: none;
+            border-color: #fff;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        .vigenere-modal-content textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .vigenere-modal-actions {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            margin: 1rem 0;
+        }
+
+        .vigenere-modal-actions button {
+            background: #ffd700;
+            color: #222;
+            border: none;
+            border-radius: 5px;
+            padding: 0.8rem 2rem;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .vigenere-modal-actions button:hover {
+            background: #fff;
+            color: #222;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .vigenere-instructions {
+            color: #ffd700;
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1rem;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .vigenere-instructions strong {
+            color: #fff;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        #vigenere-output {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            color: #00ff00;
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            padding: 1rem;
+            min-height: 100px;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 480px) {
+            .vigenere-modal-content {
+                padding: 1.5rem;
+                margin: 10% auto;
+            }
+
+            .vigenere-modal-actions {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .vigenere-modal-actions button {
+                width: 100%;
+            }
+        }
+
+        .main-title, .tagline, .site-title, .nav-menu a, h1, h2, h3, h4, h5, h6, .content-box, .profile-title, .profile-description, .article-card, .vigenere-modal-content, .vigenere-instructions, .vigenere-modal-btn, .example-modal-btn, .vigenere-modal-actions button {
+            font-family: var(--font-typewriter) !important;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="puzzle-container" id="puzzleContainer"></div>
+    <div class="loading-screen">
+        <div class="loading-animation"></div>
+        <div class="loading-text">Initializing Vigenère Cipher Explorer...</div>
+        <div class="loading-progress">
+            <div class="progress-bar"></div>
+        </div>
+    </div>
+
+    <header class="header">
+        <nav class="nav-container">
+            <a href="/" class="site-title">Vigenère Cipher Explorer</a>
+            <div class="burger-menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#explanation">Explanation</a></li>
+                <li><a href="#examples">Examples</a></li>
+                <li><a href="#implementation">Implementation</a></li>
+                <li><a href="#about">About</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Home Section -->
+        <section id="home" class="section">
+            <div class="container">
+                <h1 class="main-title">Vigenère Cipher Explorer</h1>
+                <p class="tagline">Discover the Art of Classical Cryptography</p>
+                <div class="scroll-indicator">
+                    <span>Scroll to Explore</span>
+                    <div class="scroll-arrow"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Explanation Section -->
+        <section id="explanation" class="section">
+            <div class="container">
+                <h2>Understanding the Vigenère Cipher</h2>
+                <div class="content-box">
+                    <p>The Vigenère Cipher is a method of encrypting alphabetic text using a simple form of polyalphabetic substitution. It was first described by Giovan Battista Bellaso in 1553 and later misattributed to Blaise de Vigenère in the 19th century.</p>
+                    <ul>
+                        <li>Uses a keyword to determine which alphabet to use</li>
+                        <li>More secure than simple substitution ciphers</li>
+                        <li>Considered unbreakable for over 300 years</li>
+                        <li>Basis for many modern encryption methods</li>
+                    </ul>
+                    
+                    <div class="code-example">
+                        <h3>How the Vigenère Cipher Works:</h3>
+                        <div class="vigenere-buttons">
+                            <button class="vigenere-modal-btn">Try the Vigenère Cipher</button>
+                            <button class="example-modal-btn">See Examples</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Examples Section -->
+        <section id="examples" class="section">
+            <div class="container">
+                <h2>Vigenère Cipher Examples</h2>
+                <div class="article-grid">
+                    <article class="article-card">
+                        <img src="img/1.jpg" alt="Vigenère Square">
+                        <h3>The Vigenère Square</h3>
+                        <p>An in-depth look at the Vigenère square, the fundamental tool used in this cipher. Learn how to use this grid to encrypt and decrypt messages manually.</p>
+                        <span class="article-date">Classical Cryptography</span>
+                    </article>
+                    <article class="article-card">
+                        <img src="img/2.jpg" alt="Historical Usage">
+                        <h3>Historical Applications</h3>
+                        <p>Explore how the Vigenère cipher was used throughout history, from diplomatic communications to military secrets during various conflicts.</p>
+                        <span class="article-date">Cryptography History</span>
+                    </article>
+                    <article class="article-card">
+                        <img src="img/3.jpg" alt="Modern Analysis">
+                        <h3>Breaking the Cipher</h3>
+                        <p>Understanding how Charles Babbage and Friedrich Kasiski developed methods to break the Vigenère cipher, leading to its eventual obsolescence.</p>
+                        <span class="article-date">Cryptanalysis</span>
+                    </article>
+                    <article class="article-card">
+                        <img src="img/4.jpg" alt="Modern Applications">
+                        <h3>Modern Legacy</h3>
+                        <p>How the principles of the Vigenère cipher influenced modern encryption methods and continue to be relevant in contemporary cryptography.</p>
+                        <span class="article-date">Modern Cryptography</span>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- Implementation Section -->
+        <section id="implementation" class="section">
+            <div class="container">
+                <h2>Implementation Guide</h2>
+                <div class="content-box">
+                    <p>The Vigenère cipher can be implemented in various programming languages. Here's a comprehensive guide to understanding and implementing this classical cipher.</p>
+                    
+                    <h3>Key Components</h3>
+                    <ul>
+                        <li>Keyword selection and management</li>
+                        <li>Character mapping and transformation</li>
+                        <li>Handling non-alphabetic characters</li>
+                        <li>Case sensitivity considerations</li>
+                    </ul>
+
+                    <h3>Security Considerations</h3>
+                    <p>While the Vigenère cipher was revolutionary in its time, it has several vulnerabilities:</p>
+                    <ul>
+                        <li>Frequency analysis attacks</li>
+                        <li>Known plaintext attacks</li>
+                        <li>Key length determination</li>
+                        <li>Modern computational power</li>
+                    </ul>
+
+                    <h3>Best Practices</h3>
+                    <p>When implementing the Vigenère cipher, consider these guidelines:</p>
+                    <ul>
+                        <li>Use long, random keys</li>
+                        <li>Implement proper key management</li>
+                        <li>Consider modern alternatives for real security</li>
+                        <li>Use for educational purposes only</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="section">
+            <div class="container">
+                <h2>About This Project</h2>
+                <div class="profile-container">
+                    <div class="profile-image">
+                        <img src="img/pic.jpg" alt="Celjie B. Magbunag">
+                    </div>
+                    <div class="profile-content">
+                        <h3>Sarah Jane C. Sanchez</h3>
+                        <p class="profile-title">BSIT Student | Cryptography Enthusiast</p>
+                        <p class="profile-description">
+                            I am a 21-year-old Bachelor of Science in Information Technology student at Gingoog City Colleges. My passion lies in understanding classical and modern cryptography, with a particular interest in historical encryption methods like the Vigenère cipher.
+                        </p>
+                        <p class="profile-description">
+                            This project aims to make classical cryptography more accessible and engaging for students and enthusiasts alike. Through interactive examples and clear explanations, I hope to share the fascinating world of historical encryption methods.
+                        </p>
+                        <div class="profile-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Age:</span>
+                                <span class="detail-value">21 years old</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">School:</span>
+                                <span class="detail-value">Gingoog City Colleges</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Course:</span>
+                                <span class="detail-value">BSIT</span>
+                            </div>
+                        </div>
+                        <div class="social-links">
+                            <a href="#" class="social-link">GitHub</a>
+                            <a href="#" class="social-link">LinkedIn</a>
+                            <a href="#" class="social-link">Twitter</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Vigenère Cipher Modal -->
+    <div id="vigenereModal" class="vigenere-modal">
+        <div class="vigenere-modal-content">
+            <span class="vigenere-close">&times;</span>
+            <h2>Vigenère Cipher Encoder/Decoder</h2>
+            <p class="vigenere-instructions">
+                <strong>Instructions:</strong><br>
+                1. Enter a key (letters only, e.g., "KEY")<br>
+                2. Enter text to encode or decode<br>
+                3. Click "Encode" or "Decode"<br>
+                <br>
+                <strong>Example:</strong><br>
+                Key: "KEY"<br>
+                Text: "HELLO"<br>
+                Encoded: "RIJVS"<br>
+                <br>
+                <strong>Try it yourself!</strong>
+            </p>
+            <label for="vigenere-key">Key:</label>
+            <input type="text" id="vigenere-key" placeholder="Enter key (letters only)" value="KEY">
+            <label for="vigenere-input">Text:</label>
+            <textarea id="vigenere-input" rows="3" placeholder="Enter text to encode or decode">HELLO</textarea>
+            <div class="vigenere-modal-actions">
+                <button id="vigenere-encode">Encode</button>
+                <button id="vigenere-decode">Decode</button>
+            </div>
+            <label for="vigenere-output">Result:</label>
+            <textarea id="vigenere-output" rows="3" readonly></textarea>
+        </div>
+    </div>
+
+    <!-- Example Modal -->
+    <div id="exampleModal" class="vigenere-modal">
+        <div class="vigenere-modal-content example-modal">
+            <span class="vigenere-close">&times;</span>
+            <h2>Vigenère Cipher Examples</h2>
+            
+            <div class="example-section">
+                <h3>Encoding Example</h3>
+                <div class="example-step">
+                    <p><strong>Step 1:</strong> Choose a key and message</p>
+                    <div class="example-box">
+                        <p>Key: "KEY"</p>
+                        <p>Message: "HELLO"</p>
+                    </div>
+                </div>
+                <div class="example-step">
+                    <p><strong>Step 2:</strong> Align the key with the message</p>
+                    <div class="example-box">
+                        <p>Message: H E L L O</p>
+                        <p>Key:    K E Y K E</p>
+                    </div>
+                </div>
+                <div class="example-step">
+                    <p><strong>Step 3:</strong> Convert to numbers (A=0, B=1, etc.)</p>
+                    <div class="example-box">
+                        <p>Message: 7 4 11 11 14</p>
+                        <p>Key:    10 4 24 10 4</p>
+                    </div>
+                </div>
+                <div class="example-step">
+                    <p><strong>Step 4:</strong> Add numbers and convert back to letters</p>
+                    <div class="example-box">
+                        <p>Result: 17 8 9 21 18</p>
+                        <p>Final:  R I J V S</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="example-section">
+                <h3>Decoding Example</h3>
+                <div class="example-step">
+                    <p><strong>Step 1:</strong> Start with encoded message and key</p>
+                    <div class="example-box">
+                        <p>Encoded: "RIJVS"</p>
+                        <p>Key: "KEY"</p>
+                    </div>
+                </div>
+                <div class="example-step">
+                    <p><strong>Step 2:</strong> Align the key with the encoded message</p>
+                    <div class="example-box">
+                        <p>Encoded: R I J V S</p>
+                        <p>Key:    K E Y K E</p>
+                    </div>
+                </div>
+                <div class="example-step">
+                    <p><strong>Step 3:</strong> Convert to numbers and subtract</p>
+                    <div class="example-box">
+                        <p>Encoded: 17 8 9 21 18</p>
+                        <p>Key:    10 4 24 10 4</p>
+                        <p>Result: 7 4 11 11 14</p>
+                    </div>
+                </div>
+                <div class="example-step">
+                    <p><strong>Step 4:</strong> Convert back to letters</p>
+                    <div class="example-box">
+                        <p>Final: H E L L O</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="example-tip">
+                <p><strong>Tip:</strong> The Vigenère Cipher uses modular arithmetic (wraps around after Z). 
+                When decoding, if the result is negative, add 26 to get the correct letter.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add this at the beginning of your script section
+        function createPuzzlePieces() {
+            const container = document.getElementById('puzzleContainer');
+            for (let i = 0; i < 4; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'puzzle-piece';
+                piece.style.left = `${Math.random() * 100}%`;
+                piece.style.top = `${Math.random() * 100}%`;
+                container.appendChild(piece);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            createPuzzlePieces();
+        const burgerMenu = document.querySelector('.burger-menu');
+        const navMenu = document.querySelector('.nav-menu');
+        const navLinks = document.querySelectorAll('.nav-menu a');
+
+            // Toggle menu
+        burgerMenu.addEventListener('click', () => {
+            burgerMenu.classList.toggle('active');
+            navMenu.classList.toggle('active');
+        });
+
+            // Close menu when clicking a link
+        navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                burgerMenu.classList.remove('active');
+                navMenu.classList.remove('active');
+            });
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+                if (!navMenu.contains(e.target) && !burgerMenu.contains(e.target)) {
+                burgerMenu.classList.remove('active');
+                navMenu.classList.remove('active');
+            }
+        });
+
+            // Initialize loading screen
+            setTimeout(() => {
+                const loadingScreen = document.querySelector('.loading-screen');
+                const header = document.querySelector('.header');
+                const mainTitle = document.querySelector('.main-title');
+                const tagline = document.querySelector('.tagline');
+                
+                loadingScreen.style.opacity = '0';
+                header.style.opacity = '1';
+                
+                // Make title and tagline visible immediately
+                mainTitle.style.opacity = '1';
+                mainTitle.style.transform = 'translateY(0)';
+                tagline.style.opacity = '1';
+                tagline.style.transform = 'translateY(0)';
+                
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 500);
+            }, 1000); // Reduced loading time to 1 second
+
+            // Vigenère Modal logic
+            const modalBtn = document.querySelector('.vigenere-modal-btn');
+            const modal = document.getElementById('vigenereModal');
+            const closeModal = document.querySelector('.vigenere-close');
+            const encodeBtn = document.getElementById('vigenere-encode');
+            const decodeBtn = document.getElementById('vigenere-decode');
+            const keyInput = document.getElementById('vigenere-key');
+            const textInput = document.getElementById('vigenere-input');
+            const outputArea = document.getElementById('vigenere-output');
+
+            if (modalBtn) {
+                modalBtn.addEventListener('click', () => {
+                    modal.style.display = 'flex';
+                    modal.classList.add('active');
+                    // Pre-fill example
+                    keyInput.value = 'KEY';
+                    textInput.value = 'HELLO';
+                    outputArea.value = '';
+                });
+            }
+
+            if (closeModal) {
+                closeModal.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                    modal.classList.remove('active');
+                    keyInput.value = '';
+                    textInput.value = '';
+                    outputArea.value = '';
+                });
+            }
+
+            window.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                    modal.classList.remove('active');
+                    keyInput.value = '';
+                    textInput.value = '';
+                    outputArea.value = '';
+                }
+            });
+
+            function vigenereCipher(text, key, mode = 'encode') {
+                let result = '';
+                key = key.replace(/[^a-zA-Z]/g, '').toUpperCase();
+                if (!key) return '';
+                let keyIndex = 0;
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    const isUpper = char >= 'A' && char <= 'Z';
+                    const isLower = char >= 'a' && char <= 'z';
+                    if (isUpper || isLower) {
+                        const base = isUpper ? 65 : 97;
+                        const keyChar = key[keyIndex % key.length];
+                        const keyCode = keyChar.charCodeAt(0) - 65;
+                        let charCode = char.charCodeAt(0) - base;
+                        if (mode === 'encode') {
+                            charCode = (charCode + keyCode) % 26;
+                        } else {
+                            charCode = (charCode - keyCode + 26) % 26;
+                        }
+                        result += String.fromCharCode(charCode + base);
+                        keyIndex++;
+                    } else {
+                        result += char;
+                    }
+                }
+                return result;
+            }
+
+            if (encodeBtn) {
+                encodeBtn.addEventListener('click', () => {
+                    const text = textInput.value;
+                    const key = keyInput.value;
+                    outputArea.value = vigenereCipher(text, key, 'encode');
+                });
+            }
+            if (decodeBtn) {
+                decodeBtn.addEventListener('click', () => {
+                    const text = textInput.value;
+                    const key = keyInput.value;
+                    outputArea.value = vigenereCipher(text, key, 'decode');
+                });
+            }
+
+            // Example Modal logic
+            const exampleBtn = document.querySelector('.example-modal-btn');
+            const exampleModal = document.getElementById('exampleModal');
+            const exampleClose = exampleModal.querySelector('.vigenere-close');
+
+            if (exampleBtn) {
+                exampleBtn.addEventListener('click', () => {
+                    exampleModal.style.display = 'flex';
+                    exampleModal.classList.add('active');
+                });
+            }
+
+            if (exampleClose) {
+                exampleClose.addEventListener('click', () => {
+                    exampleModal.style.display = 'none';
+                    exampleModal.classList.remove('active');
+                });
+            }
+
+            window.addEventListener('click', (e) => {
+                if (e.target === exampleModal) {
+                    exampleModal.style.display = 'none';
+                    exampleModal.classList.remove('active');
+                }
+            });
+
+            // Close modals when pressing Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    modal.style.display = 'none';
+                    modal.classList.remove('active');
+                    exampleModal.style.display = 'none';
+                    exampleModal.classList.remove('active');
+                }
+            });
+        });
+
+        // Title click animation
+        const siteTitle = document.querySelector('.site-title');
+        const matrixCanvas = document.createElement('canvas');
+        matrixCanvas.className = 'matrix-canvas';
+        document.body.appendChild(matrixCanvas);
+        const ctx = matrixCanvas.getContext('2d');
+
+        siteTitle.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // Create cipher animation
+            const cipher = document.createElement('div');
+            cipher.className = 'cipher-animation';
+            cipher.textContent = '🔐';
+            document.body.appendChild(cipher);
+
+            // Add glitch effect to title
+            siteTitle.classList.add('glitch-text');
+            
+            // Play cipher sound
+            playCipherSound();
+
+            // Start matrix animation
+            let matrixInterval = setInterval(drawMatrix, 50);
+
+            // Remove cipher and stop matrix after animation
+            setTimeout(() => {
+                cipher.remove();
+                siteTitle.classList.remove('glitch-text');
+                matrixCanvas.classList.remove('active');
+                clearInterval(matrixInterval);
+                ctx.clearRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+            }, 2000);
+        });
+
+        // Cipher sound effects
+        const cipherSounds = [
+            'https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3',  // Click
+            'https://assets.mixkit.co/active_storage/sfx/2004/2004-preview.mp3',  // Type
+            'https://assets.mixkit.co/active_storage/sfx/2005/2005-preview.mp3',  // Success
+            'https://assets.mixkit.co/active_storage/sfx/2006/2006-preview.mp3'   // Complete
+        ];
+
+        let lastSoundTime = 0;
+        const soundCooldown = 500;
+
+        function playCipherSound() {
+            const now = Date.now();
+            if (now - lastSoundTime < soundCooldown) return;
+            
+            const randomSound = cipherSounds[Math.floor(Math.random() * cipherSounds.length)];
+            const audio = new Audio(randomSound);
+            audio.volume = 0.3;
+            audio.play().catch(() => {
+                console.log('Audio autoplay prevented');
+            });
+            
+            lastSoundTime = now;
+        }
+
+        // Matrix animation
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+            ctx.fillStyle = '#3498db';
+            ctx.font = '14px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = charArray[Math.floor(Math.random() * charArray.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > matrixCanvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        // Initialize matrix
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$+-*/=%"\'#&_(),.;:?!\\|{}<>[]^~';
+        const charArray = chars.split('');
+        const fontSize = 14;
+        const columns = matrixCanvas.width / fontSize;
+        const drops = [];
+
+        // Initialize drops
+        for (let i = 0; i < columns; i++) {
+            drops[i] = 1;
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            matrixCanvas.width = window.innerWidth;
+            matrixCanvas.height = window.innerHeight;
+        });
+
+        // Initial canvas size
+        matrixCanvas.width = window.innerWidth;
+        matrixCanvas.height = window.innerHeight;
+    </script>
+</body>
+</html> 
